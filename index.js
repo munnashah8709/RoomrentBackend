@@ -4,16 +4,23 @@ const bcrypt = require("bcrypt");
 const app = express();
 const connect = require("../RoomrentBackend/connection.js/connect");
 const port = 8000;
+var cors = require('cors');
 app.use(express.json());
 const userregistration = require("../RoomrentBackend/Model/RegisterSchema");
 // const logingdatas = require("../oppsengineapp/model/loginschema");
 const secret = "mynameismunnashahiamwithrahul";
 
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
+
+
 app.post('/register', async (req, res) => {
-  const { username, email, password, contact, DateOfBirth, AlternetPhone, FatherName, MotherName, PanNumber, PanImage, VotercardImage, AadharNumber, AadharImage, profilePik } = req.body;
+  const { username, email, password, contact } = req.body;
 
   // Perform validation on the incoming data here...
-  if (!email || !password || !username ||!contact ||!FatherName ||!MotherName ||!PanImage ||!PanNumber ||!VotercardImage ||!AadharImage ||!AadharNumber ||!DateOfBirth) {
+  if (!email || !password || !username ||!contact) {
     return res.status(422).json({ error: "please add all the field" })
 }
 
@@ -33,16 +40,6 @@ app.post('/register', async (req, res) => {
       email,
       password: hashedPassword,
       contact,
-      DateOfBirth,
-      AlternetPhone,
-      FatherName,
-      MotherName,
-      PanNumber,
-      PanImage,
-      VotercardImage,
-      AadharNumber,
-      AadharImage,
-      profilePik
     });
 
     // Save the user to the database
@@ -57,27 +54,34 @@ app.post('/register', async (req, res) => {
 
 
 app.post('/login', async (req, res) => {
-    const { email, password } = req.body;
-  
     try {
-      // Check if the user exists
-      const user = await userregistration.findOne({ email });
-      if (!user) {
-        return res.status(400).json({ message: 'Invalid email or password' });
+      const{email,password}=req.body
+      if (!email || !password ) {
+          return res.status(422).json({ error: "please add email or password" })
       }
-  
-      // Compare the provided password with the stored hashed password
-      const isPasswordValid = bcrypt.compareSync(password, user.password);
-      if (!isPasswordValid) {
-        return res.status(400).json({ message: 'Invalid email or password' });
+      userregistration.findOne({ email: email })
+          .then((savedUser => {
+              if (!savedUser) {
+                  return res.status(422).json({ error: "inValid email or password" })
+  }
+  bcrypt.compare(password,savedUser.password)
+  .then(doMatch=>{
+      if(doMatch){
+          // res.json({message:"User Sign in sucessfully"})
+          const token=jwt.sign({_id:savedUser._id},secret)
+          const{_id,name,email}=savedUser
+          res.json({token,user:{_id,name,email}})
       }
-  
-      // Generate a JWT token
-      const token = jwt.sign({ userId: user._id }, secret);
-  
-      // Return the token as a response
-      res.status(200).json({ token });
-    } catch (error) {
+      else{
+          return res.status(422).json({ error: "inValid email or password" })
+      }
+  })
+  .catch(err=>{
+      console.log(err)
+  })
+  })) 
+    }
+     catch (error) {
       res.status(500).json({ message: 'Login failed' });
     }
   });
